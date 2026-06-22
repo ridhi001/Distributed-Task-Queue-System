@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobCraft Orchestrator - Real-time Background Job Processor</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SockJS and STOMP WebSockets -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <!-- ChartJS for visual metrics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Project Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="main-header">
+            <div class="brand">
+                <i class="fa-solid fa-cubes-stacked brand-icon"></i>
+                <div>
+                    <h1>JobCraft <span class="accent-text">Orchestrator</span></h1>
+                    <p class="subtitle">Distributed Async Job Processing Queue</p>
+                </div>
+            </div>
+            <div class="status-panel">
+                <div id="connection-badge" class="badge badge-disconnected">
+                    <span class="status-dot"></span>
+                    <span id="connection-text">Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Metrics Dashboard Section -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon blue-glow"><i class="fa-solid fa-layer-group"></i></div>
+                <div class="metric-info">
+                    <span class="metric-label">Queue Depth</span>
+                    <span class="metric-value" id="metric-queue-depth">0</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon green-glow"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="metric-info">
+                    <span class="metric-label">Success Rate</span>
+                    <span class="metric-value" id="metric-success-rate">100%</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon red-glow"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="metric-info">
+                    <span class="metric-label">DLQ Failures</span>
+                    <span class="metric-value" id="metric-failures">0</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon purple-glow"><i class="fa-solid fa-list-check"></i></div>
+                <div class="metric-info">
+                    <span class="metric-label">Total Submissions</span>
+                    <span class="metric-value" id="metric-total">0</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Forms Section -->
+        <main class="dashboard-body">
+            <div class="controls-grid">
+                
+                <!-- Standard Job Submission -->
+                <div class="card glass-card">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-circle-plus card-header-icon text-blue"></i> Submit Standard Job</h2>
+                    </div>
+                    <form id="standard-job-form">
+                        <div class="form-group">
+                            <label for="job-type">Job Action / Type</label>
+                            <select id="job-type" required>
+                                <option value="SEND_EMAIL">SEND_EMAIL (Simulates SMTP)</option>
+                                <option value="RESIZE_IMAGE">RESIZE_IMAGE (Simulates Processing)</option>
+                                <option value="GENERATE_REPORT">GENERATE_REPORT (Simulates DB Query)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Execution Priority</label>
+                            <div class="priority-selector">
+                                <label class="priority-btn low">
+                                    <input type="radio" name="priority" value="LOW">
+                                    <span>Low</span>
+                                </label>
+                                <label class="priority-btn medium active">
+                                    <input type="radio" name="priority" value="MEDIUM" checked>
+                                    <span>Medium</span>
+                                </label>
+                                <label class="priority-btn high">
+                                    <input type="radio" name="priority" value="HIGH">
+                                    <span>High</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="payload">Parameters / Payload (JSON)</label>
+                            <textarea id="payload" placeholder='{"recipient": "john@example.com", "template": "welcome"}' required>{"recipient": "user@example.com", "template": "welcome"}</textarea>
+                        </div>
+                        <div class="form-group flex-row">
+                            <input type="checkbox" id="force-failure">
+                            <label for="force-failure" class="checkbox-label">Force execution failure to test retries & DLQ</label>
+                        </div>
+                        <button type="submit" class="btn btn-blue w-100">
+                            <i class="fa-solid fa-paper-plane"></i> Dispatch Job
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Agentic AI Job Router -->
+                <div class="card glass-card">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-brain card-header-icon text-purple"></i> Agentic AI Job Router</h2>
+                    </div>
+                    <div class="ai-info-box">
+                        <p><i class="fa-solid fa-circle-info"></i> Enter a command in natural language. The AI agent will automatically detect the appropriate job type, priority, and extract variables into a JSON payload.</p>
+                    </div>
+                    <form id="ai-router-form">
+                        <div class="form-group">
+                            <label for="ai-prompt">Natural Language Prompt</label>
+                            <textarea id="ai-prompt" class="prompt-textarea" placeholder="e.g., Send an urgent welcome email to Sarah in accounting..." required></textarea>
+                        </div>
+                        <div class="sample-prompts">
+                            <span class="sample-badge" onclick="fillPrompt('Send a welcome email to John')">Email John</span>
+                            <span class="sample-badge" onclick="fillPrompt('Crop the profile photo image_49 to 400px width immediately')">Resize Image (Urgent)</span>
+                            <span class="sample-badge" onclick="fillPrompt('Compile a monthly finance statement in PDF for May')">Generate Financial Report</span>
+                        </div>
+                        <button type="submit" id="ai-submit-btn" class="btn btn-purple w-100">
+                            <span class="btn-content"><i class="fa-solid fa-wand-magic-sparkles"></i> Route & Dispatch</span>
+                            <span class="btn-spinner hidden"><i class="fa-solid fa-circle-notch fa-spin"></i> Analyzing...</span>
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Queue Logs Section -->
+            <div class="card glass-card mt-2">
+                <div class="card-header flex-space">
+                    <h2><i class="fa-solid fa-terminal card-header-icon text-green"></i> Live Job Execution Queue</h2>
+                    <div class="filter-controls">
+                        <button class="filter-btn active" data-filter="ALL">All</button>
+                        <button class="filter-btn" data-filter="PENDING">Pending</button>
+                        <button class="filter-btn" data-filter="RUNNING">Running</button>
+                        <button class="filter-btn" data-filter="COMPLETED">Completed</button>
+                        <button class="filter-btn" data-filter="DLQ">DLQ / Failures</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="job-table">
+                        <thead>
+                            <tr>
+                                <th>Job ID</th>
+                                <th>Type</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Retries</th>
+                                <th>Created</th>
+                                <th>Completed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="job-queue-body">
+                            <!-- Rows injected dynamically -->
+                            <tr class="empty-row">
+                                <td colspan="8"><i class="fa-solid fa-spinner fa-spin"></i> Fetching jobs and listening for updates...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Job Diagnostic Modal -->
+        <div id="diagnostic-modal" class="modal">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h3><i class="fa-solid fa-triangle-exclamation text-red"></i> Job Diagnostic Analysis (DLQ)</h3>
+                    <span class="close-btn" onclick="closeModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="diagnostic-grid">
+                        <div class="diag-section">
+                            <h4>Job Details</h4>
+                            <p><strong>Job ID:</strong> <span id="diag-id"></span></p>
+                            <p><strong>Type:</strong> <span id="diag-type"></span></p>
+                            <p><strong>Payload:</strong></p>
+                            <pre class="code-block" id="diag-payload"></pre>
+                        </div>
+                        <div class="diag-section">
+                            <h4>Error Logs</h4>
+                            <div class="error-log-box" id="diag-error"></div>
+                        </div>
+                    </div>
+                    <div class="ai-suggestion-box">
+                        <div class="ai-suggestion-title">
+                            <i class="fa-solid fa-brain"></i>
+                            <span>AI SRE Diagnostic Recommendation</span>
+                        </div>
+                        <div class="ai-suggestion-text" id="diag-ai-suggestion">
+                            <i class="fa-solid fa-circle-notch fa-spin"></i> Consulting AI failure models...
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="modal-retry-btn" class="btn btn-blue"><i class="fa-solid fa-arrows-rotate"></i> Release & Retry Job</button>
+                        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

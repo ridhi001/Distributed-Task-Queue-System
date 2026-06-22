@@ -1,0 +1,27 @@
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Maven files
+**/target/
+**/data/
+**/*.db
+**/*.log
+
+# Logs
+*.log
+log/
+logs/
+
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
