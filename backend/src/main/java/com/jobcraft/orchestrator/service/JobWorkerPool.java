@@ -80,7 +80,7 @@ public class JobWorkerPool {
 
         try {
             // Claim jobs that are ready to run
-            List<Job> jobsToRun = claimRunnableJobs(availableCapacity);
+            List<Job> jobsToRun = jobService.claimRunnableJobs(availableCapacity);
 
             if (!jobsToRun.isEmpty()) {
                 logger.info("Polled {} jobs from database for execution.", jobsToRun.size());
@@ -97,24 +97,5 @@ public class JobWorkerPool {
         } catch (Exception e) {
             logger.error("Error in job polling scheduler loop: ", e);
         }
-    }
-
-    /**
-     * Locks and transitions PENDING/RETRYING jobs to RUNNING in a single transaction.
-     * This ensures multiple instances or worker threads don't pick up the same job.
-     */
-    @Transactional
-    public List<Job> claimRunnableJobs(int limit) {
-        LocalDateTime now = LocalDateTime.now();
-        List<Job> runnableJobs = jobRepository.findRunnableJobs(now, PageRequest.of(0, limit));
-
-        for (Job job : runnableJobs) {
-            // Pre-claim by updating status and started time
-            job.setStatus(com.jobcraft.orchestrator.model.JobStatus.RUNNING);
-            job.setStartedAt(LocalDateTime.now());
-        }
-
-        // Save status changes. This commits inside the transaction.
-        return jobRepository.saveAll(runnableJobs);
     }
 }

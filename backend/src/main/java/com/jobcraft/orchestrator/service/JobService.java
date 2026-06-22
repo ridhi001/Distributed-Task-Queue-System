@@ -13,6 +13,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -258,5 +260,24 @@ public class JobService {
         // Also attach updated metrics
         message.put("stats", getStats());
         messagingTemplate.convertAndSend("/topic/jobs", (Object) message);
+    }
+
+    /**
+     * Locks and transitions PENDING/RETRYING jobs to RUNNING in a single transaction.
+     * This ensures multiple instances or worker threads don't pick up the same job.
+     */
+    @Transactional
+    public List<Job> claimRunnableJobs(int limit) {
+        LocalDateTime now = LocalDateTime.now();
+        List<Job> runnableJobs = jobRepository.findRunnableJobs(now, PageRequest.of(0, limit));
+
+        for (Job job : runnableJobs) {
+            // Pre-claim by updating status and started time
+            job.setStatus(JobStatus.RUNNING);
+            job.setStartedAt(LocalDateTime.now());
+        }
+
+        // Save status changes. This commits inside the transaction.
+        return jobRepository.saveAll(runnableJobs);
     }
 }
