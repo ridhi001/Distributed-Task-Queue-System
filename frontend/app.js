@@ -90,7 +90,7 @@ function connectWebSocket() {
 
     stompClient.connect({}, () => {
         // Connected
-        connectionBadge.className = 'badge badge-connected';
+        connectionBadge.className = 'conn-pill conn-connected';
         connectionText.textContent = 'CONNECTED';
         
         stompClient.subscribe('/topic/jobs', (message) => {
@@ -99,7 +99,7 @@ function connectWebSocket() {
         });
     }, (error) => {
         // Disconnected / Connection Error
-        connectionBadge.className = 'badge badge-disconnected';
+        connectionBadge.className = 'conn-pill conn-disconnected';
         connectionText.textContent = 'RECONNECTING...';
         console.warn('WebSocket connection lost, attempting reconnect in 3s...', error);
         setTimeout(connectWebSocket, 3000);

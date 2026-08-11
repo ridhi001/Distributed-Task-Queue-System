@@ -3,219 +3,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JobCraft Orchestrator - Async Job Processor</title>
-    <!-- FontAwesome Icons -->
+    <title>JobCraft Ops Console // Distributed Task Queue</title>
+    <!-- JetBrains Mono & IBM Plex Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for technical glyphs -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SockJS and STOMP WebSockets -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-    <!-- Project Stylesheet -->
+    <!-- Technical Ops Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
+    <div class="terminal-shell">
         
-        <!-- Header -->
-        <header class="main-header">
-            <div class="brand">
-                <i class="fa-solid fa-cube brand-icon"></i>
-                <div>
-                    <h1>JobCraft <span class="accent-text">Orchestrator</span></h1>
-                    <p class="subtitle">Distributed Asynchronous Task Queue Console</p>
+        <!-- Top Operational Status Bar -->
+        <header class="ops-header">
+            <div class="header-left">
+                <div class="brand-badge">
+                    <span class="brand-code">[SYS:JOBCRAFT]</span>
+                    <span class="brand-title">TASK_QUEUE_ORCHESTRATOR</span>
+                    <span class="version-tag">v2.4.0-RELEASE</span>
                 </div>
             </div>
-            <div class="status-panel">
-                <div id="connection-badge" class="badge badge-disconnected">
-                    <span class="status-dot"></span>
-                    <span id="connection-text">Connecting...</span>
+            
+            <div class="header-meta">
+                <div class="meta-item">
+                    <span class="meta-label">WORKERS</span>
+                    <span class="meta-val text-green">5/5 ACTIVE</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">LOCK_STRATEGY</span>
+                    <span class="meta-val text-cyan">SELECT_FOR_UPDATE</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">SECURITY</span>
+                    <span class="meta-val text-amber">X-API-KEY [ON]</span>
+                </div>
+                <div class="meta-item">
+                    <div id="connection-badge" class="conn-pill conn-disconnected">
+                        <span class="pulse-dot"></span>
+                        <span id="connection-text">CONNECTING</span>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <!-- Metrics Dashboard Section -->
-        <section class="metrics-grid">
-            <div class="metric-card">
-                <div class="metric-icon gold-glow"><i class="fa-solid fa-server"></i></div>
-                <div class="metric-info">
-                    <span class="metric-label">Queue Depth</span>
-                    <span class="metric-value" id="metric-queue-depth">0</span>
+        <!-- High-Density Metrics Bar -->
+        <section class="telemetry-bar">
+            <div class="telemetry-cell">
+                <div class="cell-header">
+                    <span class="cell-tag">01 // QUEUE_DEPTH</span>
+                    <i class="fa-solid fa-layer-group text-muted"></i>
                 </div>
+                <div class="cell-metric">
+                    <span class="metric-num text-cyan" id="metric-queue-depth">0</span>
+                    <span class="metric-unit">TASKS</span>
+                </div>
+                <div class="cell-footer">PENDING / RETRYING QUEUE</div>
             </div>
-            <div class="metric-card">
-                <div class="metric-icon sage-glow"><i class="fa-solid fa-chart-line"></i></div>
-                <div class="metric-info">
-                    <span class="metric-label">Success Rate</span>
-                    <span class="metric-value" id="metric-success-rate">100%</span>
+
+            <div class="telemetry-cell">
+                <div class="cell-header">
+                    <span class="cell-tag">02 // SUCCESS_RATIO</span>
+                    <i class="fa-solid fa-chart-pie text-muted"></i>
                 </div>
+                <div class="cell-metric">
+                    <span class="metric-num text-green" id="metric-success-rate">100.0%</span>
+                    <span class="metric-unit">NOMINAL</span>
+                </div>
+                <div class="cell-footer">LIFETIME EXECUTION RATE</div>
             </div>
-            <div class="metric-card">
-                <div class="metric-icon coral-glow"><i class="fa-solid fa-circle-exclamation"></i></div>
-                <div class="metric-info">
-                    <span class="metric-label">Dead Letter Queue</span>
-                    <span class="metric-value" id="metric-failures">0</span>
+
+            <div class="telemetry-cell">
+                <div class="cell-header">
+                    <span class="cell-tag">03 // DLQ_QUARANTINE</span>
+                    <i class="fa-solid fa-triangle-exclamation text-muted"></i>
                 </div>
+                <div class="cell-metric">
+                    <span class="metric-num text-red" id="metric-failures">0</span>
+                    <span class="metric-unit">FAILURES</span>
+                </div>
+                <div class="cell-footer">TERMINAL MAX_RETRIES HIT</div>
             </div>
-            <div class="metric-card">
-                <div class="metric-icon indigo-glow"><i class="fa-solid fa-microchip"></i></div>
-                <div class="metric-info">
-                    <span class="metric-label">Total Completed</span>
-                    <span class="metric-value" id="metric-total">0</span>
+
+            <div class="telemetry-cell">
+                <div class="cell-header">
+                    <span class="cell-tag">04 // TOTAL_DISPATCHED</span>
+                    <i class="fa-solid fa-microchip text-muted"></i>
                 </div>
+                <div class="cell-metric">
+                    <span class="metric-num text-primary" id="metric-total">0</span>
+                    <span class="metric-unit">EVENTS</span>
+                </div>
+                <div class="cell-footer">DATABASE STORED RECORDS</div>
             </div>
         </section>
 
-        <!-- Forms Section -->
-        <main class="dashboard-body">
-            <div class="controls-grid">
+        <!-- Main Engineering Workbench Grid -->
+        <div class="workbench-grid">
+            
+            <!-- Left Column: Command & Dispatch Consoles -->
+            <aside class="workbench-sidebar">
                 
-                <!-- Standard Job Submission -->
-                <div class="card glass-card">
-                    <div class="card-header">
-                        <h2><i class="fa-solid fa-terminal card-header-icon text-gold"></i> Submit Standard Job</h2>
+                <!-- Box 1: Manual Task Dispatch -->
+                <div class="panel-box">
+                    <div class="panel-title-bar">
+                        <span class="title-text"><i class="fa-solid fa-terminal text-cyan"></i> MANUAL_TASK_DISPATCH</span>
+                        <span class="title-sub">POST /api/jobs</span>
                     </div>
-                    <form id="standard-job-form">
-                        <div class="form-group">
-                            <label for="job-type">Job Action / Type</label>
-                            <select id="job-type" required>
-                                <option value="SEND_EMAIL">SEND_EMAIL (Simulates SMTP)</option>
-                                <option value="RESIZE_IMAGE">RESIZE_IMAGE (Simulates Processing)</option>
-                                <option value="GENERATE_REPORT">GENERATE_REPORT (Simulates DB Query)</option>
+                    <form id="standard-job-form" class="panel-body">
+                        <div class="form-row">
+                            <label for="job-type" class="field-label">ACTION_TYPE</label>
+                            <select id="job-type" class="tech-select" required>
+                                <option value="SEND_EMAIL">SEND_EMAIL [SMTP_SIMULATION]</option>
+                                <option value="RESIZE_IMAGE">RESIZE_IMAGE [IMAGE_PIPELINE]</option>
+                                <option value="GENERATE_REPORT">GENERATE_REPORT [SQL_REPORTING]</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>Execution Priority</label>
-                            <div class="priority-selector">
-                                <label class="priority-btn low">
+
+                        <div class="form-row">
+                            <label class="field-label">PRIORITY_SCHEDULE</label>
+                            <div class="prio-toggle-grid">
+                                <label class="prio-toggle prio-low">
                                     <input type="radio" name="priority" value="LOW">
-                                    <span>Low</span>
+                                    <span class="toggle-box">LOW [P3]</span>
                                 </label>
-                                <label class="priority-btn medium active">
+                                <label class="prio-toggle prio-med active">
                                     <input type="radio" name="priority" value="MEDIUM" checked>
-                                    <span>Medium</span>
+                                    <span class="toggle-box">MED [P2]</span>
                                 </label>
-                                <label class="priority-btn high">
+                                <label class="prio-toggle prio-high">
                                     <input type="radio" name="priority" value="HIGH">
-                                    <span>High</span>
+                                    <span class="toggle-box">HIGH [P1]</span>
                                 </label>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="payload">Parameters / Payload (JSON)</label>
-                            <textarea id="payload" placeholder='{"recipient": "john@example.com", "template": "welcome"}' required>{"recipient": "user@example.com", "template": "welcome"}</textarea>
+
+                        <div class="form-row">
+                            <label for="payload" class="field-label">PAYLOAD_BUFFER [RAW_JSON]</label>
+                            <textarea id="payload" class="tech-textarea monospace-text" rows="3" required>{"recipient": "user@example.com", "template": "welcome"}</textarea>
                         </div>
-                        <div class="form-group flex-row">
-                            <input type="checkbox" id="force-failure">
-                            <label for="force-failure" class="checkbox-label">Force execution failure to test retries & DLQ</label>
+
+                        <div class="form-row checkbox-row">
+                            <input type="checkbox" id="force-failure" class="tech-checkbox">
+                            <label for="force-failure" class="checkbox-label">
+                                <span class="text-amber">INJECT_FAULT</span> (Forces retry backoff & DLQ)
+                            </label>
                         </div>
-                        <button type="submit" class="btn btn-blue w-100">
-                            <i class="fa-solid fa-chevron-right"></i> Deploy Job Task
+
+                        <button type="submit" class="tech-btn btn-primary w-100">
+                            <i class="fa-solid fa-play"></i> EXECUTE_DISPATCH
                         </button>
                     </form>
                 </div>
 
-                <!-- Agentic AI Job Router -->
-                <div class="card glass-card">
-                    <div class="card-header">
-                        <h2><i class="fa-solid fa-compass-drafting card-header-icon text-indigo"></i> Agentic AI Job Router</h2>
+                <!-- Box 2: SRE Agentic AI Router -->
+                <div class="panel-box mt-panel">
+                    <div class="panel-title-bar">
+                        <span class="title-text"><i class="fa-solid fa-network-wired text-purple"></i> AGENTIC_ROUTER [GEMINI]</span>
+                        <span class="title-sub">POST /api/jobs/ai-route</span>
                     </div>
-                    <div class="ai-info-box">
-                        <p><i class="fa-solid fa-circle-info"></i> Enter a command in plain English. The AI agent parses your intent, extracts payload keys, schedules a priority level, and submits the task automatically.</p>
-                    </div>
-                    <form id="ai-router-form">
-                        <div class="form-group">
-                            <label for="ai-prompt">Natural Language prompt</label>
-                            <textarea id="ai-prompt" class="prompt-textarea" placeholder="e.g., Send an urgent welcome email to Sarah in accounting..." required></textarea>
+                    <form id="ai-router-form" class="panel-body">
+                        <div class="ai-banner">
+                            <i class="fa-solid fa-robot text-purple"></i>
+                            <span>Natural language intent parser parses payload, extracts parameters, assigns priority, and enqueues task.</span>
                         </div>
-                        <div class="sample-prompts">
-                            <span class="sample-badge" onclick="fillPrompt('Send a welcome email to John')">Email John</span>
-                            <span class="sample-badge" onclick="fillPrompt('Crop the profile photo image_49 to 400px width immediately')">Resize Image (Urgent)</span>
-                            <span class="sample-badge" onclick="fillPrompt('Compile a monthly finance statement in PDF for May')">Generate Financial Report</span>
+
+                        <div class="form-row">
+                            <label for="ai-prompt" class="field-label">INTENT_PROMPT</label>
+                            <div class="prompt-input-wrapper">
+                                <span class="cli-prefix">&gt;_</span>
+                                <textarea id="ai-prompt" class="tech-textarea prompt-textarea monospace-text" placeholder="e.g., Send urgent payment receipt to finance@corp.com" rows="2" required></textarea>
+                            </div>
                         </div>
-                        <button type="submit" id="ai-submit-btn" class="btn btn-purple w-100">
-                            <span class="btn-content"><i class="fa-solid fa-paper-plane"></i> Consult Agent & Dispatch</span>
-                            <span class="btn-spinner hidden"><i class="fa-solid fa-circle-notch fa-spin"></i> Analyzing...</span>
+
+                        <div class="preset-chips">
+                            <button type="button" class="preset-chip" onclick="fillPrompt('Send a welcome email to John')">+ email_john</button>
+                            <button type="button" class="preset-chip" onclick="fillPrompt('Crop user profile avatar to 400px urgently')">+ crop_avatar</button>
+                            <button type="button" class="preset-chip" onclick="fillPrompt('Generate monthly audit report in PDF format')">+ audit_report</button>
+                        </div>
+
+                        <button type="submit" id="ai-submit-btn" class="tech-btn btn-ai w-100">
+                            <span class="btn-content"><i class="fa-solid fa-bolt"></i> PARSE &amp; ENQUEUE</span>
+                            <span class="btn-spinner hidden"><i class="fa-solid fa-spinner fa-spin"></i> QUERYING_LLM...</span>
                         </button>
                     </form>
                 </div>
 
-            </div>
+            </aside>
 
-            <!-- Queue Logs Section -->
-            <div class="card glass-card mt-2">
-                <div class="card-header flex-space">
-                    <h2><i class="fa-solid fa-bars-stroom card-header-icon text-gold"></i> Live Task Queue Stream</h2>
-                    <div class="filter-controls">
-                        <button class="filter-btn active" data-filter="ALL">All</button>
-                        <button class="filter-btn" data-filter="PENDING">Pending</button>
-                        <button class="filter-btn" data-filter="RUNNING">Running</button>
-                        <button class="filter-btn" data-filter="COMPLETED">Completed</button>
-                        <button class="filter-btn" data-filter="DLQ">DLQ / Failures</button>
+            <!-- Right Column: Live Stream Task Queue Monitor -->
+            <main class="workbench-main">
+                <div class="panel-box h-100">
+                    <div class="panel-title-bar flex-space">
+                        <div class="stream-title">
+                            <span class="title-text"><i class="fa-solid fa-list-check text-green"></i> TASK_MATRIX_STREAM</span>
+                            <span class="stream-live-indicator"><span class="live-pulse"></span> LIVE_SOCKET</span>
+                        </div>
+                        <div class="filter-strip">
+                            <button class="filter-btn active" data-filter="ALL">[ALL]</button>
+                            <button class="filter-btn" data-filter="PENDING">[PENDING]</button>
+                            <button class="filter-btn" data-filter="RUNNING">[RUNNING]</button>
+                            <button class="filter-btn" data-filter="COMPLETED">[COMPLETED]</button>
+                            <button class="filter-btn" data-filter="DLQ">[DLQ_FAILURES]</button>
+                        </div>
+                    </div>
+
+                    <div class="table-frame">
+                        <table class="tech-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 95px;">TASK_ID</th>
+                                    <th>ACTION_TYPE</th>
+                                    <th style="width: 80px;">PRIORITY</th>
+                                    <th style="width: 140px;">STATUS</th>
+                                    <th style="width: 75px;">RETRIES</th>
+                                    <th style="width: 90px;">CREATED</th>
+                                    <th style="width: 90px;">FINISHED</th>
+                                    <th style="width: 80px; text-align: right;">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="job-queue-body">
+                                <tr class="empty-row">
+                                    <td colspan="8"><i class="fa-solid fa-circle-notch fa-spin text-cyan"></i> Awaiting telemetry broadcast from STOMP broker...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="table-container">
-                    <table class="job-table">
-                        <thead>
-                            <tr>
-                                <th>Task ID</th>
-                                <th>Job Action</th>
-                                <th>Priority</th>
-                                <th>Execution Status</th>
-                                <th>Attempt</th>
-                                <th>Created</th>
-                                <th>Finished</th>
-                                <th>Operations</th>
-                            </tr>
-                        </thead>
-                        <tbody id="job-queue-body">
-                            <tr class="empty-row">
-                                <td colspan="8"><i class="fa-solid fa-spinner fa-spin"></i> Connecting to task streams...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            </main>
+
+        </div>
+
+        <!-- Terminal DLQ Diagnostic Inspection Modal -->
+        <div id="diagnostic-modal" class="modal-overlay">
+            <div class="tech-modal-dialog">
+                <div class="modal-title-bar">
+                    <span class="modal-title-text"><i class="fa-solid fa-bug text-red"></i> SRE_DIAGNOSTIC_INSPECTOR // DEAD_LETTER_QUEUE</span>
+                    <button class="close-x-btn" onclick="closeModal()">[ESC / X]</button>
                 </div>
-            </div>
-        </main>
-        
-        <!-- Job Diagnostic Modal -->
-        <div id="diagnostic-modal" class="modal">
-            <div class="modal-content glass-card">
-                <div class="modal-header">
-                    <h3><i class="fa-solid fa-triangle-exclamation text-coral"></i> Job Diagnostic Analysis (DLQ)</h3>
-                    <span class="close-btn" onclick="closeModal()">&times;</span>
+                
+                <div class="modal-content-body">
+                    <div class="diag-meta-grid">
+                        <div class="diag-meta-cell">
+                            <span class="diag-label">TASK_UUID</span>
+                            <span class="diag-val monospace-text" id="diag-id">-</span>
+                        </div>
+                        <div class="diag-meta-cell">
+                            <span class="diag-label">TASK_TYPE</span>
+                            <span class="diag-val monospace-text" id="diag-type">-</span>
+                        </div>
+                    </div>
+
+                    <div class="diag-block">
+                        <span class="diag-block-title">PAYLOAD_BUFFER:</span>
+                        <pre class="raw-terminal-log monospace-text" id="diag-payload"></pre>
+                    </div>
+
+                    <div class="diag-block">
+                        <span class="diag-block-title text-red">EXCEPTION_STACK_LOG:</span>
+                        <div class="raw-terminal-log err-log-box monospace-text" id="diag-error"></div>
+                    </div>
+
+                    <div class="diag-block">
+                        <span class="diag-block-title text-green"><i class="fa-solid fa-terminal"></i> AI_SRE_RECOMMENDATION:</span>
+                        <div class="ai-remedy-box monospace-text" id="diag-ai-suggestion">
+                            <i class="fa-solid fa-spinner fa-spin text-green"></i> Awaiting LLM diagnostic evaluation...
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <div class="diagnostic-grid">
-                        <div class="diag-section">
-                            <h4>Job Details</h4>
-                            <p><strong>Job ID:</strong> <span id="diag-id"></span></p>
-                            <p><strong>Type:</strong> <span id="diag-type"></span></p>
-                            <p><strong>Payload:</strong></p>
-                            <pre class="code-block" id="diag-payload"></pre>
-                        </div>
-                        <div class="diag-section">
-                            <h4>Error Logs</h4>
-                            <div class="error-log-box" id="diag-error"></div>
-                        </div>
-                    </div>
-                    <div class="ai-suggestion-box">
-                        <div class="ai-suggestion-title">
-                            <i class="fa-solid fa-compass"></i>
-                            <span>AI SRE Diagnostic Recommendation</span>
-                        </div>
-                        <div class="ai-suggestion-text" id="diag-ai-suggestion">
-                            <i class="fa-solid fa-circle-notch fa-spin"></i> Consulting AI SRE models...
-                        </div>
-                    </div>
-                    <div class="modal-actions">
-                        <button id="modal-retry-btn" class="btn btn-blue"><i class="fa-solid fa-arrows-rotate"></i> Release & Retry</button>
-                        <button class="btn btn-secondary" onclick="closeModal()">Dismiss</button>
-                    </div>
+
+                <div class="modal-footer-bar">
+                    <button id="modal-retry-btn" class="tech-btn btn-primary">
+                        <i class="fa-solid fa-rotate"></i> RE-ENQUEUE_FROM_DLQ
+                    </button>
+                    <button class="tech-btn btn-subtle" onclick="closeModal()">
+                        DISMISS
+                    </button>
                 </div>
             </div>
         </div>
 
     </div>
-    
+
+    <!-- Application Controller -->
     <script src="app.js"></script>
 </body>
 </html>
