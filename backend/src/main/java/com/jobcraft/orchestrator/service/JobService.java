@@ -95,7 +95,7 @@ public class JobService {
         // 1. Mark as running
         job.setStatus(JobStatus.RUNNING);
         job.setStartedAt(LocalDateTime.now());
-        jobRepository.save(job);
+        job = jobRepository.save(job);
         broadcastUpdate(job);
 
         logger.info("Executing Job {} of type {} (Retry count: {})", job.getId(), job.getType(), job.getRetryCount());
@@ -116,7 +116,7 @@ public class JobService {
             // Success state
             job.setStatus(JobStatus.COMPLETED);
             job.setCompletedAt(LocalDateTime.now());
-            jobRepository.save(job);
+            job = jobRepository.save(job);
             broadcastUpdate(job);
             logger.info("Job completed successfully: {}", job.getId());
 
@@ -155,7 +155,7 @@ public class JobService {
             int backoffSeconds = (int) Math.pow(2, job.getRetryCount());
             job.setScheduledAt(LocalDateTime.now().plusSeconds(backoffSeconds));
 
-            jobRepository.save(job);
+            job = jobRepository.save(job);
             broadcastUpdate(job);
             logger.info("Job {} scheduled for retry in {} seconds (Attempt {}/{})",
                     job.getId(), backoffSeconds, job.getRetryCount(), job.getMaxRetries());
@@ -163,24 +163,28 @@ public class JobService {
             // Move to Dead Letter Queue (DLQ)
             job.setStatus(JobStatus.DLQ);
             job.setCompletedAt(LocalDateTime.now());
-            jobRepository.save(job);
-            broadcastUpdate(job);
-            logger.info("Job {} moved to DLQ. Executing AI Failure Analysis.", job.getId());
+            final Job savedJob = jobRepository.save(job);
+            broadcastUpdate(savedJob);
+            logger.info("Job {} moved to DLQ. Executing AI Failure Analysis.", savedJob.getId());
+
+            final UUID jobId = savedJob.getId();
+            final String type = savedJob.getType();
+            final String payload = savedJob.getPayload();
 
             // Asynchronously run Gemini AI Failure Analyzer
             CompletableFuture.runAsync(() -> {
                 try {
-                    String suggestion = geminiClient.analyzeFailure(job.getType(), job.getPayload(), errorMsg);
+                    String suggestion = geminiClient.analyzeFailure(type, payload, errorMsg);
                     // Reload job to avoid stale state issues in separate thread
-                    Job freshJob = jobRepository.findById(job.getId()).orElse(null);
+                    Job freshJob = jobRepository.findById(jobId).orElse(null);
                     if (freshJob != null) {
                         freshJob.setAiAnalysis(suggestion);
                         jobRepository.save(freshJob);
                         broadcastUpdate(freshJob);
-                        logger.info("AI Analysis completed for failed job {}", job.getId());
+                        logger.info("AI Analysis completed for failed job {}", jobId);
                     }
                 } catch (Exception e) {
-                    logger.error("AI Failure Analyzer thread failed for job {}", job.getId(), e);
+                    logger.error("AI Failure Analyzer thread failed for job {}", jobId, e);
                 }
             });
         }

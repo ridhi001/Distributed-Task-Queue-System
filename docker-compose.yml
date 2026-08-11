@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Shared Database (PostgreSQL / Shared SQL Store)
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: jobcraft-postgres
+    environment:
+      POSTGRES_DB: jobsdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jobsdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Distributed Worker Node 1
+  app-node-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jobcraft-node-1
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/jobsdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgrespassword
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      APP_API_KEY: dev-secret-api-key
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:8080
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+  # Distributed Worker Node 2 (Running in parallel against the shared DB)
+  app-node-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jobcraft-node-2
+    environment:
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/jobsdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgrespassword
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      APP_API_KEY: dev-secret-api-key
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:8080
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+  # Frontend Dashboard
+  frontend:
+    image: nginx:alpine
+    container_name: jobcraft-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - app-node-1
+      - app-node-2
+
+volumes:
+  pgdata:

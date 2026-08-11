@@ -1,8 +1,16 @@
 // JobCraft Orchestrator Frontend Client
 const API_BASE_URL = 'http://localhost:8080';
+const API_KEY = 'dev-secret-api-key';
 let stompClient = null;
 let jobsList = [];
 let selectedFilter = 'ALL';
+
+function getHeaders(extraHeaders = {}) {
+    return {
+        'X-API-KEY': API_KEY,
+        ...extraHeaders
+    };
+}
 
 // DOM Elements
 const connectionBadge = document.getElementById('connection-badge');
@@ -127,7 +135,9 @@ function handleWebSocketEvent(data) {
 // REST API calls
 async function fetchJobs() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/jobs`);
+        const response = await fetch(`${API_BASE_URL}/api/jobs`, {
+            headers: getHeaders()
+        });
         if (response.ok) {
             jobsList = await response.json();
             // Sort by created time descending initially
@@ -141,7 +151,9 @@ async function fetchJobs() {
 
 async function fetchStats() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/jobs/stats`);
+        const response = await fetch(`${API_BASE_URL}/api/jobs/stats`, {
+            headers: getHeaders()
+        });
         if (response.ok) {
             const stats = await response.json();
             updateMetrics(stats);
@@ -155,7 +167,7 @@ async function submitStandardJob(type, priority, payload) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/jobs`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ type, priority, payload, maxRetries: 3 })
         });
         if (response.ok) {
@@ -163,7 +175,8 @@ async function submitStandardJob(type, priority, payload) {
             document.getElementById('force-failure').checked = false;
             document.getElementById('payload').value = '{"recipient": "user@example.com", "template": "welcome"}';
         } else {
-            alert('Failed to submit job.');
+            const errData = await response.json().catch(() => ({}));
+            alert(errData.message || 'Failed to submit job.');
         }
     } catch (err) {
         console.error('Error submitting standard job: ', err);
@@ -179,13 +192,14 @@ async function submitAiRouterJob(prompt) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/jobs/ai-route`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ prompt })
         });
         if (response.ok) {
             aiPromptInput.value = '';
         } else {
-            alert('AI Router was unable to route this job. Please try a different query.');
+            const errData = await response.json().catch(() => ({}));
+            alert(errData.message || 'AI Router was unable to route this job. Please try a different query.');
         }
     } catch (err) {
         console.error('Error in AI routing: ', err);
@@ -202,7 +216,8 @@ async function deleteJob(id) {
     if (!confirm('Are you sure you want to delete this job?')) return;
     try {
         await fetch(`${API_BASE_URL}/api/jobs/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: getHeaders()
         });
     } catch (err) {
         console.error('Error deleting job: ', err);
@@ -212,12 +227,14 @@ async function deleteJob(id) {
 async function triggerRetry(id) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/jobs/${id}/retry`, {
-            method: 'POST'
+            method: 'POST',
+            headers: getHeaders()
         });
         if (response.ok) {
             closeModal();
         } else {
-            alert('Could not retry this job.');
+            const errData = await response.json().catch(() => ({}));
+            alert(errData.message || 'Could not retry this job.');
         }
     } catch (err) {
         console.error('Error triggering retry: ', err);
